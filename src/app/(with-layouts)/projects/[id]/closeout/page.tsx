@@ -1,9 +1,11 @@
 import { getProject } from "@/app/actions/masters";
 import { listCloseout, lockProject, toggleCloseoutItem } from "@/app/actions/profit";
+import { ActionForm } from "@/components/common/action-form";
 import { BackToHub } from "@/components/common/back-to-hub";
 import { Button } from "@/components/tailgrids/core/button";
 import { Card } from "@/components/tailgrids/core/card";
 import { canCloseProject, requireProjectAccess, sessionRole } from "@/lib/access";
+import { projectStatusLabel } from "@/utils/status-labels";
 import { redirect } from "next/navigation";
 
 export default async function CloseoutPage({
@@ -37,7 +39,7 @@ export default async function CloseoutPage({
         <div>
           <h1 className="text-[28px] font-medium text-text-primary">إغلاق المشروع</h1>
           <p className="text-sm text-text-tertiary">
-            {project.name} · الحالة {project.status}
+            {project.name} · الحالة {projectStatusLabel[project.status] ?? project.status}
           </p>
         </div>
         <BackToHub projectId={id} />
@@ -62,18 +64,24 @@ export default async function CloseoutPage({
                 </Button>
               </form>
             ) : (
-              <span className="text-sm">{item.done ? "تم" : "Pending"}</span>
+              <span className="text-sm">{item.done ? "تم" : "قيد الانتظار"}</span>
             )}
           </div>
         ))}
       </Card>
 
       {canClose && project.status !== "CLOSED" ? (
-        <form action={lockAction}>
+        <ActionForm
+          action={lockAction}
+          requireReason
+          reasonField="reason"
+          confirmMessage="سبب قفل المشروع (لا يمكن التراجع بسهولة)"
+          successMessage="تم قفل المشروع"
+        >
           <Button type="submit" variant="danger">
             قفل المشروع
           </Button>
-        </form>
+        </ActionForm>
       ) : null}
     </div>
   );

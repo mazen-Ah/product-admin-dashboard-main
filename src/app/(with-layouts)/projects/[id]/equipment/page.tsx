@@ -218,7 +218,14 @@ export default async function EquipmentPage({
                   <div className="text-sm">
                     <p className="font-semibold text-text-primary">{item.name}</p>
                     <p className="mt-1 text-text-tertiary">
-                      {item.ownership} · {item.chargingMethod}
+                      {item.ownership === "OWNED" ? "مملوكة" : "مستأجرة"} ·{" "}
+                      {item.chargingMethod === "BY_HOUR"
+                        ? "بالساعة"
+                        : item.chargingMethod === "BY_DAY"
+                          ? "باليوم"
+                          : item.chargingMethod === "BY_MONTH"
+                            ? "بالشهر"
+                            : "بالمتر"}
                       {item.hoursPerDay != null ? ` · ${String(item.hoursPerDay)} س/يوم` : ""}
                       {item.monthlyRate != null ? ` · ${String(item.monthlyRate)}` : ""}
                     </p>

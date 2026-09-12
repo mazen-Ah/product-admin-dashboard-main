@@ -311,6 +311,7 @@ export async function reverseSettlement(formData: FormData) {
     action: "REVERSE",
     entity: "Settlement",
     entityId: settlementId,
+    detail: String(formData.get("reason") ?? "").trim() || null,
   });
 
   revalidatePath(`/projects/${projectId}/settlements`);

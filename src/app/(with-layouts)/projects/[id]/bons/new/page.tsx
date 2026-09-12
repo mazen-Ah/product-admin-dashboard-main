@@ -96,13 +96,19 @@ export default async function NewBonPage({
               </FormField>
               <FormField>
                 <Label htmlFor="materialName">المادة</Label>
-                <Input
+                <select
                   id="materialName"
                   name="materialName"
                   required
+                  className={formSelectClassName}
                   defaultValue={rate?.materialName ?? materials[0]?.name ?? ""}
-                  className="w-full"
-                />
+                >
+                  {materials.map((m) => (
+                    <option key={m.id} value={m.name}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
               </FormField>
               <FormField>
                 <Label htmlFor="truckPlate">لوحة الشاحنة</Label>
@@ -163,7 +169,7 @@ export default async function NewBonPage({
                   className={formSelectClassName}
                   defaultValue={rate?.quarrySupplierId ?? quarries[0]?.id ?? ""}
                 >
-                  {suppliers.map((s) => (
+                  {(quarries.length ? quarries : suppliers).map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
@@ -178,7 +184,7 @@ export default async function NewBonPage({
                   className={formSelectClassName}
                   defaultValue={rate?.carrierSupplierId ?? carriers[0]?.id ?? ""}
                 >
-                  {suppliers.map((s) => (
+                  {(carriers.length ? carriers : suppliers).map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
@@ -187,7 +193,7 @@ export default async function NewBonPage({
               </FormField>
               <FormField className="md:col-span-2">
                 <Label htmlFor="photo">صورة البون (إلزامية للخارجي)</Label>
-                <Input id="photo" name="photo" type="file" accept="image/*" className="w-full" />
+                <Input id="photo" name="photo" type="file" accept="image/*" required className="w-full" />
               </FormField>
               <FormField className="md:col-span-2">
                 <Label htmlFor="overTallyReason">سبب تجاوز التوقيع (إن وجد)</Label>

@@ -1,19 +1,15 @@
 import { listBons, cancelBon } from "@/app/actions/bons";
 import { getProject } from "@/app/actions/masters";
+import { ActionForm } from "@/components/common/action-form";
 import { BackToHub } from "@/components/common/back-to-hub";
 import { EmptyState } from "@/components/common/page-toolbar";
 import { Badge } from "@/components/tailgrids/core/badge";
 import { Button } from "@/components/tailgrids/core/button";
 import { Card } from "@/components/tailgrids/core/card";
 import { canAmendBon, canCreateBon, requireProjectAccess, sessionRole } from "@/lib/access";
+import { formatMoney, moneyClassName } from "@/utils/money";
+import { bonStatusLabel } from "@/utils/status-labels";
 import Link from "next/link";
-
-const statusLabel: Record<string, string> = {
-  PENDING: "قيد الانتظار",
-  IN_SETTLEMENT: "في المستخلص",
-  PAID: "مدفوع",
-  CANCELLED: "ملغى",
-};
 
 export default async function BonsPage({
   params,
@@ -61,7 +57,9 @@ export default async function BonsPage({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-1 text-sm text-text-secondary">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-text-primary">#{bon.seq}</span>
+                      <span className={`font-semibold text-text-primary ${moneyClassName()}`}>
+                        #{bon.seq}
+                      </span>
                       <Badge color="gray">{bon.kind === "EXTERNAL" ? "خارجي" : "داخلي"}</Badge>
                       <Badge
                         color={
@@ -74,21 +72,24 @@ export default async function BonsPage({
                                 : "primary"
                         }
                       >
-                        {statusLabel[bon.status] ?? bon.status}
+                        {bonStatusLabel[bon.status] ?? bon.status}
                       </Badge>
                     </div>
                     <p>
-                      ورقي {bon.paperSerial} · {bon.date.toISOString().slice(0, 10)} ·{" "}
-                      {bon.materialName} · {bon.truckPlate}
+                      ورقي <span className={moneyClassName()}>{bon.paperSerial}</span> ·{" "}
+                      {bon.date.toISOString().slice(0, 10)} · {bon.materialName} ·{" "}
+                      <span className={moneyClassName()}>{bon.truckPlate}</span>
                     </p>
-                    <p>
-                      رحلات {bon.trips} · كمية {String(bon.qtyM3)} − خصم{" "}
-                      {String(bon.deductionM3)} = {String(bon.netM3)} م³
+                    <p className={moneyClassName()}>
+                      رحلات {bon.trips} · كمية {formatMoney(bon.qtyM3)} − خصم{" "}
+                      {formatMoney(bon.deductionM3)} = {formatMoney(bon.netM3)} م³
                     </p>
                     {bon.kind === "EXTERNAL" ? (
-                      <p>
-                        محجر {materialLine?.supplier.name}: {String(materialLine?.amountLyd ?? 0)} ·
-                        ناقل {haulageLine?.supplier.name}: {String(haulageLine?.amountLyd ?? 0)}
+                      <p className={moneyClassName()}>
+                        محجر {materialLine?.supplier.name}:{" "}
+                        {formatMoney(materialLine?.amountLyd ?? 0, { currency: "LYD" })} · ناقل{" "}
+                        {haulageLine?.supplier.name}:{" "}
+                        {formatMoney(haulageLine?.amountLyd ?? 0, { currency: "LYD" })}
                       </p>
                     ) : null}
                     {bon.overTallyReason ? (
@@ -109,14 +110,19 @@ export default async function BonsPage({
                       </Link>
                     ) : null}
                     {bon.status === "PENDING" && canCancel ? (
-                      <form action={cancelBon}>
+                      <ActionForm
+                        action={cancelBon}
+                        requireReason
+                        reasonField="cancelReason"
+                        confirmMessage="سبب إلغاء البون"
+                        successMessage="تم إلغاء البون"
+                      >
                         <input type="hidden" name="projectId" value={id} />
                         <input type="hidden" name="id" value={bon.id} />
-                        <input type="hidden" name="cancelReason" value="إلغاء من القائمة" />
                         <Button type="submit" size="sm" appearance="ghost" variant="danger">
                           إلغاء
                         </Button>
-                      </form>
+                      </ActionForm>
                     ) : null}
                   </div>
                 </div>

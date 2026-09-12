@@ -19,10 +19,20 @@ export async function listWallets(projectId: string) {
     include: { currency: true, movements: { orderBy: { createdAt: "desc" }, take: 20 } },
   });
   return Promise.all(
-    wallets.map(async (w) => ({
-      ...w,
-      balanceLyd: await walletBalanceLyd(w.id),
-    })),
+    wallets.map(async (w) => {
+      const [lyd, native] = await Promise.all([
+        walletBalanceLyd(w.id),
+        prisma.walletMovement.aggregate({
+          where: { walletId: w.id },
+          _sum: { amountNative: true },
+        }),
+      ]);
+      return {
+        ...w,
+        balanceLyd: lyd,
+        balanceNative: Number(native._sum.amountNative ?? 0),
+      };
+    }),
   );
 }
 

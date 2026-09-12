@@ -269,6 +269,7 @@ export async function lockProject(formData: FormData) {
     action: "CLOSE",
     entity: "Project",
     entityId: projectId,
+    detail: String(formData.get("reason") ?? "").trim() || null,
   });
 
   revalidatePath(`/projects/${projectId}`);

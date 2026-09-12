@@ -4,21 +4,9 @@ import { Badge } from "@/components/tailgrids/core/badge";
 import { Button } from "@/components/tailgrids/core/button";
 import { Card } from "@/components/tailgrids/core/card";
 import { canMutateMasterData, requireSession } from "@/lib/access";
+import { formatMoney, moneyClassName } from "@/utils/money";
+import { projectStatusColor, projectStatusLabel } from "@/utils/status-labels";
 import Link from "next/link";
-
-function formatMoney(value: unknown) {
-  const n = Number(value);
-  if (Number.isNaN(n)) return String(value);
-  return new Intl.NumberFormat("en-LY", { maximumFractionDigits: 0 }).format(n);
-}
-
-const statusLabel: Record<string, string> = {
-  ACTIVE: "نشط",
-  SUSPENDED: "موقوف",
-  COMPLETED: "مكتمل",
-  CLOSED: "مغلق",
-  PARTIALLY_CANCELLED: "ملغى جزئياً",
-};
 
 export default async function HomePage() {
   const session = await requireSession();
@@ -50,9 +38,8 @@ export default async function HomePage() {
           </Card>
           <Card className="p-4">
             <p className="text-xs text-text-tertiary">إجمالي قيم العقود</p>
-            <p className="mt-1 text-2xl font-semibold text-text-primary">
-              {formatMoney(totalContract)}
-              <span className="ms-1 text-sm font-normal text-text-tertiary">LYD</span>
+            <p className={`mt-1 text-2xl font-semibold text-text-primary ${moneyClassName()}`}>
+              {formatMoney(totalContract, { currency: "LYD", digits: 0 })}
             </p>
           </Card>
         </div>
@@ -77,20 +64,21 @@ export default async function HomePage() {
                           {project.name}
                         </h3>
                         {project.tradeName ? (
-                          <p className="truncate text-sm text-text-tertiary">
-                            {project.tradeName}
-                          </p>
+                          <p className="truncate text-sm text-text-tertiary">{project.tradeName}</p>
                         ) : null}
                       </div>
-                      <Badge color="primary" className="shrink-0">
-                        {statusLabel[project.status] ?? project.status}
+                      <Badge
+                        color={projectStatusColor[project.status] ?? "primary"}
+                        className="shrink-0"
+                      >
+                        {projectStatusLabel[project.status] ?? project.status}
                       </Badge>
                     </div>
 
                     <div className="grid gap-2 sm:grid-cols-2">
                       <MetaTile
                         label="قيمة العقد"
-                        value={`${formatMoney(project.contractValue)} LYD`}
+                        value={formatMoney(project.contractValue, { currency: "LYD", digits: 0 })}
                       />
                       <MetaTile label="العميل" value={project.client?.name ?? "—"} />
                       {project.location ? (

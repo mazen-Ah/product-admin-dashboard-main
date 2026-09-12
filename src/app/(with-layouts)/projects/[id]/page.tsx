@@ -4,20 +4,8 @@ import { ProjectModuleGrid } from "@/components/common/project-module-grid";
 import { Badge } from "@/components/tailgrids/core/badge";
 import { Card } from "@/components/tailgrids/core/card";
 import { canMutateMasterData, requireSession } from "@/lib/access";
-
-function formatMoney(value: unknown) {
-  const n = Number(value);
-  if (Number.isNaN(n)) return String(value);
-  return new Intl.NumberFormat("en-LY", { maximumFractionDigits: 0 }).format(n);
-}
-
-const statusLabel: Record<string, string> = {
-  ACTIVE: "نشط",
-  SUSPENDED: "موقوف",
-  COMPLETED: "مكتمل",
-  CLOSED: "مغلق",
-  PARTIALLY_CANCELLED: "ملغى جزئياً",
-};
+import { formatMoney } from "@/utils/money";
+import { projectStatusColor, projectStatusLabel } from "@/utils/status-labels";
 
 export default async function ProjectHubPage({
   params,
@@ -43,12 +31,14 @@ export default async function ProjectHubPage({
         <Card className="p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-text-primary">ملخص المشروع</h2>
-            <Badge color="primary">{statusLabel[project.status] ?? project.status}</Badge>
+            <Badge color={projectStatusColor[project.status] ?? "primary"}>
+              {projectStatusLabel[project.status] ?? project.status}
+            </Badge>
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <MetaTile
               label="قيمة العقد"
-              value={`${formatMoney(project.contractValue)} LYD`}
+              value={formatMoney(project.contractValue, { currency: "LYD", digits: 0 })}
             />
             <MetaTile label="احتجاز %" value={String(project.retentionPercent)} />
             <MetaTile label="العميل" value={project.client?.name ?? "—"} />

@@ -7,6 +7,7 @@ import {
   transferWallet,
   upsertCustody,
 } from "@/app/actions/treasury";
+import { ActionForm } from "@/components/common/action-form";
 import { BackToHub } from "@/components/common/back-to-hub";
 import {
   FormActions,
@@ -77,10 +78,15 @@ export default async function WalletsPage({
       <div className="grid gap-3 sm:grid-cols-2">
         {wallets.map((w) => (
           <Card key={w.id} className="p-4">
-            <p className="font-semibold text-text-primary">{w.label ?? w.method}</p>
+            <p className="font-semibold text-text-primary">
+              {w.label ?? (w.method === "CASH" ? "نقدي" : "مصرف")}
+            </p>
             <p className="mt-1 text-sm text-text-tertiary">{w.currency.code}</p>
-            <p className="mt-3 text-2xl font-semibold text-text-primary">
-              {w.balanceLyd.toFixed(2)} LYD
+            <p className="mt-3 font-mono text-2xl font-semibold tabular-nums text-text-primary">
+              {Number(w.balanceNative).toFixed(2)} {w.currency.code}
+            </p>
+            <p className="mt-1 font-mono text-sm tabular-nums text-text-tertiary">
+              يعادل {Number(w.balanceLyd).toFixed(2)} LYD
             </p>
           </Card>
         ))}
@@ -90,14 +96,14 @@ export default async function WalletsPage({
         <>
           <Card className="bg-transparent p-5">
             <FormTitle>رصيد افتتاحي</FormTitle>
-            <form action={openingAction}>
+            <ActionForm action={openingAction} successMessage="تم حفظ الرصيد">
               <FormGrid>
                 <FormField>
                   <Label htmlFor="walletId">المحفظة</Label>
                   <select id="walletId" name="walletId" required className={formSelectClassName}>
                     {wallets.map((w) => (
                       <option key={w.id} value={w.id}>
-                        {w.label ?? w.method}
+                        {w.label ?? w.method} ({w.currency.code})
                       </option>
                     ))}
                   </select>
@@ -112,12 +118,16 @@ export default async function WalletsPage({
                   </Button>
                 </FormActions>
               </FormGrid>
-            </form>
+            </ActionForm>
           </Card>
 
           <Card className="bg-transparent p-5">
             <FormTitle>تحويل بين المحافظ</FormTitle>
-            <form action={transferAction}>
+            <ActionForm
+              action={transferAction}
+              confirmMessage="تأكيد التحويل بين المحافظ؟"
+              successMessage="تم التحويل"
+            >
               <FormGrid>
                 <FormField>
                   <Label htmlFor="fromWalletId">من</Label>
@@ -163,12 +173,12 @@ export default async function WalletsPage({
                   </Button>
                 </FormActions>
               </FormGrid>
-            </form>
+            </ActionForm>
           </Card>
 
           <Card className="bg-transparent p-5">
             <FormTitle>عهدة</FormTitle>
-            <form action={custodyAction}>
+            <ActionForm action={custodyAction} successMessage="تم حفظ العهدة">
               <FormGrid>
                 <FormField>
                   <Label htmlFor="personId">الشخص</Label>
@@ -211,7 +221,7 @@ export default async function WalletsPage({
                   </Button>
                 </FormActions>
               </FormGrid>
-            </form>
+            </ActionForm>
           </Card>
         </>
       ) : null}

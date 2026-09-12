@@ -75,15 +75,17 @@ export default function LoginPage() {
         <Suspense>
           <LoginForm />
         </Suspense>
-        <Card className="w-full max-w-md text-sm text-text-secondary">
-          <p className="mb-2 font-medium text-text-primary">حسابات التجربة</p>
-          <p>كلمة المرور للجميع: Password123!</p>
-          <ul className="mt-2 list-inside list-disc space-y-1">
-            <li>accounts@example.com — مدير الحسابات (كل المشاريع)</li>
-            <li>supervisor@example.com — مشرف (مشروع واحد)</li>
-            <li>partner@example.com — شريك (قراءة)</li>
-          </ul>
-        </Card>
+        {process.env.NEXT_PUBLIC_DEMO_MODE === "true" ? (
+          <Card className="w-full max-w-md text-sm text-text-secondary">
+            <p className="mb-2 font-medium text-text-primary">حسابات التجربة</p>
+            <p>كلمة المرور للجميع: Password123!</p>
+            <ul className="mt-2 list-inside list-disc space-y-1">
+              <li>accounts@example.com — مدير الحسابات (كل المشاريع)</li>
+              <li>supervisor@example.com — مشرف (مشروع واحد)</li>
+              <li>partner@example.com — شريك (قراءة)</li>
+            </ul>
+          </Card>
+        ) : null}
       </div>
     </div>
   );

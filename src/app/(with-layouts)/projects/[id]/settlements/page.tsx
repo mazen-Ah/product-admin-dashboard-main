@@ -7,7 +7,9 @@ import {
 } from "@/app/actions/settlements";
 import { getProject, listSuppliers } from "@/app/actions/masters";
 import { ensureProjectWallets, listWallets } from "@/app/actions/treasury";
+import { ActionForm } from "@/components/common/action-form";
 import { BackToHub } from "@/components/common/back-to-hub";
+import { EmptyState } from "@/components/common/page-toolbar";
 import {
   FormActions,
   FormField,
@@ -21,6 +23,8 @@ import { Card } from "@/components/tailgrids/core/card";
 import { Input } from "@/components/tailgrids/core/input";
 import { Label } from "@/components/tailgrids/core/label";
 import { canPaySettlement, requireProjectAccess, sessionRole } from "@/lib/access";
+import { formatMoney, moneyClassName } from "@/utils/money";
+import { payableTypeLabel, settlementStatusLabel, walletMethodLabel } from "@/utils/status-labels";
 import { redirect } from "next/navigation";
 
 export default async function SettlementsPage({
@@ -43,6 +47,7 @@ export default async function SettlementsPage({
   ]);
   const supplierId = sp.supplierId ?? suppliers[0]?.id ?? "";
   const pending = supplierId ? await listPendingPayables(id, supplierId) : [];
+  const pendingTotal = pending.reduce((sum, line) => sum + Number(line.amountLyd), 0);
   const showCreate = sp.create === "1" && canPay;
 
   async function createAction(formData: FormData) {
@@ -72,7 +77,7 @@ export default async function SettlementsPage({
       {showCreate ? (
         <Card className="bg-transparent p-5">
           <FormTitle>إنشاء مستخلص</FormTitle>
-          <form action={createAction}>
+          <ActionForm action={createAction} successMessage="تم إنشاء المستخلص">
             <FormGrid>
               <FormField className="md:col-span-2">
                 <Label htmlFor="supplierId">المورد</Label>
@@ -89,9 +94,6 @@ export default async function SettlementsPage({
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-text-tertiary">
-                  غيّر المورد عبر الرابط ثم أعد فتح الإنشاء لعرض البنود.
-                </p>
               </FormField>
               <FormField>
                 <Label htmlFor="penaltyAmount">غرامة تأخير</Label>
@@ -109,14 +111,37 @@ export default async function SettlementsPage({
                 <Input id="penaltyReason" name="penaltyReason" className="w-full" />
               </FormField>
               <div className="md:col-span-2 space-y-2">
-                <Label>بنود مستحقة (قيد الانتظار)</Label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>بنود مستحقة (قيد الانتظار)</Label>
+                  <p className={`text-sm text-text-secondary ${moneyClassName()}`}>
+                    الإجمالي التقريبي: {formatMoney(pendingTotal, { currency: "LYD" })}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {suppliers.map((s) => (
+                    <a
+                      key={s.id}
+                      href={`/projects/${id}/settlements?create=1&supplierId=${s.id}`}
+                      className={`rounded-md border px-2 py-1 text-sm ${
+                        s.id === supplierId
+                          ? "border-brand-primary bg-brand-primary/10 text-brand-primary"
+                          : "border-card-border text-text-secondary"
+                      }`}
+                    >
+                      {s.name}
+                    </a>
+                  ))}
+                </div>
                 {pending.length === 0 ? (
                   <p className="text-sm text-text-tertiary">لا بنود لهذا المورد</p>
                 ) : (
                   pending.map((line) => (
                     <label key={line.id} className="flex items-center gap-2 text-sm">
                       <input type="checkbox" name="lineId" value={line.id} defaultChecked />
-                      بون #{line.bon.seq} · {line.type} · {String(line.amountLyd)} LYD
+                      بون #{line.bon.seq} · {payableTypeLabel[line.type] ?? line.type} ·{" "}
+                      <span className={moneyClassName()}>
+                        {formatMoney(line.amountLyd, { currency: "LYD" })}
+                      </span>
                     </label>
                   ))
                 )}
@@ -132,87 +157,105 @@ export default async function SettlementsPage({
                 </Button>
               </FormActions>
             </FormGrid>
-          </form>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {suppliers.map((s) => (
-              <a
-                key={s.id}
-                href={`/projects/${id}/settlements?create=1&supplierId=${s.id}`}
-                className="text-sm text-brand-primary underline"
-              >
-                {s.name}
-              </a>
-            ))}
-          </div>
+          </ActionForm>
         </Card>
       ) : null}
 
-      <div className="space-y-3">
-        {settlements.map((s) => (
-          <Card key={s.id} className="space-y-3 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="font-semibold text-text-primary">{s.supplier.name}</p>
-                <p className="text-sm text-text-tertiary">
-                  {s.createdAt.toISOString().slice(0, 10)} · مدفوع {String(s.paidAmountLyd)}
-                </p>
-              </div>
-              <Badge
-                color={
-                  s.status === "PAID"
-                    ? "success"
-                    : s.status === "REVERSED"
-                      ? "gray"
-                      : "warning"
-                }
-              >
-                {s.status}
-              </Badge>
-            </div>
-            <ul className="text-sm text-text-secondary">
-              {s.bons.map((b) => (
-                <li key={b.id}>
-                  بون #{b.bon.seq} · {b.lineType} · {String(b.amountLyd)}{" "}
-                  {b.paid ? "(مدفوع)" : ""}
-                </li>
-              ))}
-            </ul>
-            {canPay && s.status !== "PAID" && s.status !== "REVERSED" ? (
-              <form action={paySettlement} className="flex flex-wrap items-end gap-3">
-                <input type="hidden" name="projectId" value={id} />
-                <input type="hidden" name="id" value={s.id} />
-                <div>
-                  <Label htmlFor={`wallet-${s.id}`}>المحفظة</Label>
-                  <select
-                    id={`wallet-${s.id}`}
-                    name="walletId"
-                    required
-                    className={formSelectClassName}
+      {settlements.length === 0 && !showCreate ? (
+        <EmptyState
+          message="لا توجد مستخلصات"
+          actionHref={canPay ? `/projects/${id}/settlements?create=1` : undefined}
+          actionLabel={canPay ? "مستخلص جديد" : undefined}
+        />
+      ) : (
+        <div className="space-y-3">
+          {settlements.map((s) => {
+            const gross = s.bons.reduce((sum, b) => sum + Number(b.amountLyd), 0);
+            return (
+              <Card key={s.id} className="space-y-3 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-text-primary">{s.supplier.name}</p>
+                    <p className={`text-sm text-text-tertiary ${moneyClassName()}`}>
+                      {s.createdAt.toISOString().slice(0, 10)} · إجمالي{" "}
+                      {formatMoney(gross, { currency: "LYD" })} · مدفوع{" "}
+                      {formatMoney(s.paidAmountLyd, { currency: "LYD" })}
+                    </p>
+                  </div>
+                  <Badge
+                    color={
+                      s.status === "PAID"
+                        ? "success"
+                        : s.status === "REVERSED"
+                          ? "gray"
+                          : s.status === "PARTIALLY_PAID"
+                            ? "warning"
+                            : "primary"
+                    }
                   >
-                    {wallets.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.label ?? w.method} ({w.currency.code}) · {w.balanceLyd.toFixed(2)}
-                      </option>
-                    ))}
-                  </select>
+                    {settlementStatusLabel[s.status] ?? s.status}
+                  </Badge>
                 </div>
-                <Button type="submit" size="sm">
-                  دفع
-                </Button>
-              </form>
-            ) : null}
-            {canPay && s.status !== "REVERSED" ? (
-              <form action={reverseSettlement}>
-                <input type="hidden" name="projectId" value={id} />
-                <input type="hidden" name="id" value={s.id} />
-                <Button type="submit" size="sm" appearance="ghost" variant="danger">
-                  عكس المستخلص
-                </Button>
-              </form>
-            ) : null}
-          </Card>
-        ))}
-      </div>
+                <ul className="text-sm text-text-secondary">
+                  {s.bons.map((b) => (
+                    <li key={b.id} className={moneyClassName()}>
+                      بون #{b.bon.seq} · {payableTypeLabel[b.lineType] ?? b.lineType} ·{" "}
+                      {formatMoney(b.amountLyd, { currency: "LYD" })}{" "}
+                      {b.paid ? "(مدفوع)" : ""}
+                    </li>
+                  ))}
+                </ul>
+                {canPay && s.status !== "PAID" && s.status !== "REVERSED" ? (
+                  <ActionForm
+                    action={paySettlement}
+                    className="flex flex-wrap items-end gap-3"
+                    confirmMessage={`تأكيد دفع مستخلص ${s.supplier.name} بمبلغ ${formatMoney(gross - Number(s.paidAmountLyd), { currency: "LYD" })}؟`}
+                    successMessage="تم الدفع"
+                  >
+                    <input type="hidden" name="projectId" value={id} />
+                    <input type="hidden" name="id" value={s.id} />
+                    <div>
+                      <Label htmlFor={`wallet-${s.id}`}>المحفظة</Label>
+                      <select
+                        id={`wallet-${s.id}`}
+                        name="walletId"
+                        required
+                        className={formSelectClassName}
+                      >
+                        {wallets.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.label ?? walletMethodLabel[w.method] ?? w.method} ({w.currency.code})
+                            {" · "}
+                            رصيد LYD {formatMoney(w.balanceLyd)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <Button type="submit" size="sm">
+                      دفع
+                    </Button>
+                  </ActionForm>
+                ) : null}
+                {canPay && s.status !== "REVERSED" ? (
+                  <ActionForm
+                    action={reverseSettlement}
+                    requireReason
+                    reasonField="reason"
+                    confirmMessage="سبب عكس المستخلص"
+                    successMessage="تم عكس المستخلص"
+                  >
+                    <input type="hidden" name="projectId" value={id} />
+                    <input type="hidden" name="id" value={s.id} />
+                    <Button type="submit" size="sm" appearance="ghost" variant="danger">
+                      عكس المستخلص
+                    </Button>
+                  </ActionForm>
+                ) : null}
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
