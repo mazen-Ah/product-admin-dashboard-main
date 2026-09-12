@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ensureDemoReady } from "@/lib/seed-demo";
 import type { Role } from "@/generated/prisma/client";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -56,6 +57,20 @@ export function canCloseProject(role: string | null | undefined) {
   return role === "ACCOUNTS_MANAGER" || role === "MANAGING_PARTNER";
 }
 
+async function resolveUserId(sessionUserId: string, email?: string | null) {
+  const byId = await prisma.user.findUnique({
+    where: { id: sessionUserId },
+    select: { id: true },
+  });
+  if (byId) return byId.id;
+  if (!email) return sessionUserId;
+  const byEmail = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+  return byEmail?.id ?? sessionUserId;
+}
+
 export async function getAccessibleProjectIds(userId: string, role: string) {
   if (isAccountsManager(role)) {
     const projects = await prisma.project.findMany({ select: { id: true } });
@@ -71,10 +86,27 @@ export async function getAccessibleProjectIds(userId: string, role: string) {
 export async function requireProjectAccess(projectId: string) {
   const session = await requireSession();
   const role = (session.user as { role?: string }).role ?? "";
-  const ids = await getAccessibleProjectIds(session.user.id, role);
+  const email = session.user.email;
+
+  let userId = await resolveUserId(session.user.id, email);
+  let ids = await getAccessibleProjectIds(userId, role);
+
   if (!ids.includes(projectId)) {
-    redirect("/");
+    await ensureDemoReady(prisma);
+    userId = await resolveUserId(session.user.id, email);
+    ids = await getAccessibleProjectIds(userId, role);
   }
+
+  if (!ids.includes(projectId)) {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true },
+    });
+    if (!project || !isAccountsManager(role)) {
+      redirect("/");
+    }
+  }
+
   return session;
 }
 

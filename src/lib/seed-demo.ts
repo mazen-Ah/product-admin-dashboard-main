@@ -17,6 +17,20 @@ import { ensureChartAccounts } from "@/lib/accounting";
 
 export const DEMO_PASSWORD = "Password123!";
 
+export const DEMO_USER_IDS = {
+  accounts: "demo-user-accounts",
+  managing: "demo-user-managing",
+  partner: "demo-user-partner",
+  accountant: "demo-user-accountant",
+  supervisor: "demo-user-supervisor",
+} as const;
+
+export const DEMO_PROJECT_IDS = {
+  tripoli: "demo-project-tripoli",
+  misrata: "demo-project-misrata",
+  benghazi: "demo-project-benghazi",
+} as const;
+
 function d(y: number, m: number, day: number) {
   return new Date(Date.UTC(y, m - 1, day, 10, 0, 0));
 }
@@ -29,7 +43,7 @@ function addDays(base: Date, days: number) {
 
 async function createUser(
   db: PrismaClient,
-  input: { name: string; email: string; role: Role },
+  input: { id: string; name: string; email: string; role: Role },
 ) {
   const existing = await db.user.findUnique({ where: { email: input.email } });
   if (existing) {
@@ -51,6 +65,7 @@ async function createUser(
 
   const user = await db.user.create({
     data: {
+      id: input.id,
       name: input.name,
       email: input.email,
       emailVerified: true,
@@ -623,30 +638,35 @@ export async function seedDemoData(db: PrismaClient) {
   });
 
   const accountsManager = await createUser(db, {
+    id: DEMO_USER_IDS.accounts,
     name: "مدير الحسابات",
     email: "accounts@example.com",
     role: Role.ACCOUNTS_MANAGER,
   });
 
   const managingPartner = await createUser(db, {
+    id: DEMO_USER_IDS.managing,
     name: "الشريك المدير",
     email: "managing@example.com",
     role: Role.MANAGING_PARTNER,
   });
 
   const partner = await createUser(db, {
+    id: DEMO_USER_IDS.partner,
     name: "شريك",
     email: "partner@example.com",
     role: Role.PARTNER,
   });
 
   const accountant = await createUser(db, {
+    id: DEMO_USER_IDS.accountant,
     name: "محاسب المشروع",
     email: "accountant@example.com",
     role: Role.PROJECT_ACCOUNTANT,
   });
 
   const supervisor = await createUser(db, {
+    id: DEMO_USER_IDS.supervisor,
     name: "مشرف المشروع",
     email: "supervisor@example.com",
     role: Role.PROJECT_SUPERVISOR,
@@ -704,6 +724,7 @@ export async function seedDemoData(db: PrismaClient) {
   const allTrucks = await db.truck.findMany();
 
   async function ensureProject(input: {
+    id: string;
     name: string;
     tradeName: string;
     location: string;
@@ -713,10 +734,13 @@ export async function seedDemoData(db: PrismaClient) {
     clientContact: string;
     closedAt?: Date;
   }) {
-    let project = await db.project.findFirst({ where: { name: input.name } });
+    let project =
+      (await db.project.findUnique({ where: { id: input.id } })) ??
+      (await db.project.findFirst({ where: { name: input.name } }));
     if (!project) {
       project = await db.project.create({
         data: {
+          id: input.id,
           name: input.name,
           tradeName: input.tradeName,
           location: input.location,
@@ -784,6 +808,7 @@ export async function seedDemoData(db: PrismaClient) {
   }
 
   const main = await ensureProject({
+    id: DEMO_PROJECT_IDS.tripoli,
     name: "مشروع طريق طرابلس التجريبي",
     tradeName: "طريق الساحل",
     location: "طرابلس",
@@ -794,6 +819,7 @@ export async function seedDemoData(db: PrismaClient) {
   });
 
   const misrata = await ensureProject({
+    id: DEMO_PROJECT_IDS.misrata,
     name: "مشروع طريق مصراتة — سرت",
     tradeName: "محور مصراتة",
     location: "مصراتة",
@@ -804,6 +830,7 @@ export async function seedDemoData(db: PrismaClient) {
   });
 
   const benghazi = await ensureProject({
+    id: DEMO_PROJECT_IDS.benghazi,
     name: "مشروع صيانة طريق بنغازي",
     tradeName: "صيانة بنغازي",
     location: "بنغازي",
@@ -1038,9 +1065,10 @@ export async function ensureDemoReady(db: PrismaClient) {
   if (!ensurePromise) {
     ensurePromise = (async () => {
       try {
+        const projects = await db.project.count();
+        if (projects > 0) return;
         const users = await db.user.count();
-        const bons = await db.bon.count();
-        if (users === 0 || bons < 50) await seedDemoData(db);
+        if (users === 0) await seedDemoData(db);
       } catch {
         await seedDemoData(db).catch(() => undefined);
       }

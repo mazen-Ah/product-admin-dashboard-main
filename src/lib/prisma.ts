@@ -32,31 +32,15 @@ function findSeededDatabase() {
   return null;
 }
 
-function deployMarker() {
-  return (
-    process.env.VERCEL_DEPLOYMENT_ID ||
-    process.env.VERCEL_GIT_COMMIT_SHA ||
-    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
-    "local"
-  );
-}
-
 function resolveSqlitePath() {
   const source = configuredSqliteFile();
   const ephemeral = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
   if (!ephemeral) return source;
 
   const dest = path.join(os.tmpdir(), "roads-prototype.db");
-  const marker = path.join(os.tmpdir(), "roads-prototype.db.deploy");
   const seeded = findSeededDatabase();
-  const currentDeploy = deployMarker();
-  const previousDeploy = fs.existsSync(marker) ? fs.readFileSync(marker, "utf8") : "";
-  const destOk = fs.existsSync(dest) && fs.statSync(dest).size > 10_000;
-  const needsRefresh = !destOk || previousDeploy !== currentDeploy;
-
-  if (needsRefresh && seeded) {
+  if (seeded) {
     fs.copyFileSync(seeded, dest);
-    fs.writeFileSync(marker, currentDeploy);
   }
   return dest;
 }
