@@ -7,13 +7,12 @@ import { Label } from "@/components/tailgrids/core/label";
 import { TextField } from "@/components/tailgrids/core/text-field";
 import { useLocale } from "@/i18n/locale-provider";
 import { authClient } from "@/lib/auth-client";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { toast } from "sonner";
 
 function LoginForm() {
   const { t } = useLocale();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
 
@@ -32,9 +31,8 @@ function LoginForm() {
       return;
     }
 
-    router.push(searchParams.get("next") || "/");
-    router.refresh();
-  }
+    const next = searchParams.get("next") || "/";
+    window.location.assign(next);  }
 
   return (
     <Card className="w-full max-w-md bg-transparent p-5">
