@@ -21,6 +21,7 @@ export type PrototypeBon = {
   hasPhoto: boolean;
 };
 
+
 export type PrototypeTally = {
   id: string;
   period: string;
