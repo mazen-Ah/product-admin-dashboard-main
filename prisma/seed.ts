@@ -4,9 +4,9 @@ import { DEMO_PASSWORD, seedDemoData } from "../src/lib/seed-demo";
 
 async function main() {
   await seedDemoData(prisma);
-  console.log("Seed complete. Demo password:", DEMO_PASSWORD);
-  console.log("Accounts Manager: accounts@example.com");
-  console.log("Supervisor (project-scoped): supervisor@example.com");
+  console.log("Seed complete (~1 year demo data). Password:", DEMO_PASSWORD);
+  console.log("accounts@example.com | managing@example.com | partner@example.com");
+  console.log("accountant@example.com | supervisor@example.com");
 }
 
 main()
