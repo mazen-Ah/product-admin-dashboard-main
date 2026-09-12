@@ -6,6 +6,7 @@ import {
   requireSession,
 } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
+import { ensureDemoReady } from "@/lib/seed-demo";
 import {
   ChargingMethod,
   EquipmentOwnership,
@@ -18,6 +19,7 @@ function userRole(session: Awaited<ReturnType<typeof requireSession>>) {
 }
 
 export async function listProjects() {
+  await ensureDemoReady(prisma);
   const session = await requireSession();
   const role = userRole(session);
   const ids = await getAccessibleProjectIds(session.user.id, role);
