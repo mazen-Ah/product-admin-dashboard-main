@@ -1,0 +1,629 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  PARTNER
+  MANAGING_PARTNER
+  ACCOUNTS_MANAGER
+  PROJECT_ACCOUNTANT
+  PROJECT_SUPERVISOR
+}
+
+enum ProjectStatus {
+  ACTIVE
+  SUSPENDED
+  COMPLETED
+  CLOSED
+  PARTIALLY_CANCELLED
+}
+
+enum WalletMethod {
+  CASH
+  BANK
+}
+
+enum EquipmentOwnership {
+  OWNED
+  RENTED
+}
+
+enum ChargingMethod {
+  BY_HOUR
+  BY_DAY
+  BY_MONTH
+  BY_METRE
+}
+
+enum BonKind {
+  INTERNAL
+  EXTERNAL
+}
+
+enum BonStatus {
+  PENDING
+  IN_SETTLEMENT
+  PAID
+  CANCELLED
+}
+
+enum PayableLineType {
+  MATERIAL
+  HAULAGE
+}
+
+enum SettlementStatus {
+  DRAFT
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  REVERSED
+}
+
+enum WalletMovementKind {
+  OPENING
+  SETTLEMENT_PAY
+  TRANSFER_OUT
+  TRANSFER_IN
+  EXPENSE
+  COLLECTION
+  CUSTODY_OUT
+  CUSTODY_IN
+  DISTRIBUTION
+  REVERSAL
+}
+
+enum ExpenseType {
+  SUBSISTENCE
+  GRATUITY
+  DIESEL
+  PAYROLL
+  TRANSFER_COMMISSION
+  OTHER
+}
+
+enum JournalSource {
+  SETTLEMENT
+  WALLET_TRANSFER
+  EXPENSE
+  FX
+  COLLECTION
+  EQUIPMENT
+  DISTRIBUTION
+  OPENING
+  MANUAL
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          Role      @default(PROJECT_SUPERVISOR)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  memberships   ProjectMembership[]
+  partnerShares PartnerShare[]
+  custodies     Custody[]
+  auditLogs     AuditLog[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+model Project {
+  id               String        @id @default(cuid())
+  name             String
+  tradeName        String?
+  logo             String?
+  location         String?
+  contractValue    Decimal
+  retentionPercent Decimal       @default(10)
+  status           ProjectStatus @default(ACTIVE)
+  taxable          Boolean       @default(false)
+  closedAt         DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  client           Client?
+  wallets          Wallet[]
+  memberships      ProjectMembership[]
+  rateCards        RateCard[]
+  equipment        Equipment[]
+  partnerShares    PartnerShare[]
+  tallies          Tally[]
+  bons             Bon[]
+  settlements      Settlement[]
+  advances         SupplierAdvance[]
+  custodies        Custody[]
+  expenses         Expense[]
+  equipmentLogs    EquipmentLog[]
+  collections      Collection[]
+  distributions    PartnerDistribution[]
+  journals         JournalEntry[]
+  ledgerEntries    LedgerEntry[]
+  closeoutItems    CloseoutItem[]
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  contact   String?
+  projectId String   @unique
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Currency {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  wallets   Wallet[]
+  custodies Custody[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Wallet {
+  id         String           @id @default(cuid())
+  projectId  String
+  project    Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  method     WalletMethod
+  currencyId String
+  currency   Currency         @relation(fields: [currencyId], references: [id])
+  label      String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  movements  WalletMovement[]
+  settlements Settlement[]
+  expenses   Expense[]
+  collections Collection[]
+
+  @@unique([projectId, method, currencyId])
+}
+
+model ProjectMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, projectId])
+}
+
+model PartnerShare {
+  id               String   @id @default(cuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sharePercent     Decimal
+  managementPercent Decimal @default(0)
+  capital          Decimal  @default(0)
+  loanBalance      Decimal  @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([projectId, userId])
+}
+
+model Supplier {
+  id              String            @id @default(cuid())
+  name            String
+  contact         String?
+  type            String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  quarryRates     RateCard[]        @relation("QuarryRates")
+  carrierRates    RateCard[]        @relation("CarrierRates")
+  issuerBons      Bon[]             @relation("IssuerBons")
+  payableLines    BonPayableLine[]
+  settlements     Settlement[]
+  advances        SupplierAdvance[]
+}
+
+model Material {
+  id        String   @id @default(cuid())
+  name      String
+  unit      String   @default("m3")
+  code      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rateCards RateCard[]
+  bons      Bon[]
+}
+
+model Truck {
+  id        String   @id @default(cuid())
+  plate     String   @unique
+  payloadM3 Decimal?
+  driver    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  bons      Bon[]
+}
+
+model RateCard {
+  id               String    @id @default(cuid())
+  projectId        String
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  materialId       String?
+  material         Material? @relation(fields: [materialId], references: [id])
+  materialName     String
+  materialPrice    Decimal
+  haulagePrice     Decimal
+  quarrySupplierId String?
+  quarrySupplier   Supplier? @relation("QuarryRates", fields: [quarrySupplierId], references: [id])
+  carrierSupplierId String?
+  carrierSupplier  Supplier? @relation("CarrierRates", fields: [carrierSupplierId], references: [id])
+  effectiveFrom    DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Equipment {
+  id             String             @id @default(cuid())
+  projectId      String
+  project        Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name           String
+  ownership      EquipmentOwnership
+  chargingMethod ChargingMethod
+  hoursPerDay    Decimal?
+  monthlyRate    Decimal?
+  hourlyRate     Decimal?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  logs           EquipmentLog[]
+}
+
+model Tally {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  date        DateTime
+  signedTrips Int
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  bons        Bon[]
+}
+
+model Bon {
+  id                String           @id @default(cuid())
+  projectId         String
+  project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind              BonKind
+  status            BonStatus        @default(PENDING)
+  seq               Int
+  paperSerial       String
+  issuerSupplierId  String?
+  issuerSupplier    Supplier?        @relation("IssuerBons", fields: [issuerSupplierId], references: [id])
+  date              DateTime
+  materialId        String?
+  material          Material?        @relation(fields: [materialId], references: [id])
+  materialName      String
+  truckId           String?
+  truck             Truck?           @relation(fields: [truckId], references: [id])
+  truckPlate        String
+  trips             Int              @default(1)
+  qtyM3             Decimal
+  deductionM3       Decimal          @default(0)
+  netM3             Decimal
+  materialPrice     Decimal          @default(0)
+  haulagePrice      Decimal          @default(0)
+  currencyCode      String           @default("LYD")
+  fxRate            Decimal          @default(1)
+  photoPath         String?
+  tallyId           String?
+  tally             Tally?           @relation(fields: [tallyId], references: [id])
+  overTallyReason   String?
+  cancelReason      String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  payableLines      BonPayableLine[]
+  settlementLines   SettlementBon[]
+
+  @@unique([projectId, seq])
+  @@unique([issuerSupplierId, paperSerial])
+}
+
+model BonPayableLine {
+  id         String          @id @default(cuid())
+  bonId      String
+  bon        Bon             @relation(fields: [bonId], references: [id], onDelete: Cascade)
+  type       PayableLineType
+  supplierId String
+  supplier   Supplier        @relation(fields: [supplierId], references: [id])
+  unitPrice  Decimal
+  amountNative Decimal
+  fxRate     Decimal         @default(1)
+  amountLyd  Decimal
+  createdAt  DateTime        @default(now())
+
+  @@unique([bonId, type])
+}
+
+model Settlement {
+  id              String           @id @default(cuid())
+  projectId       String
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  supplierId      String
+  supplier        Supplier         @relation(fields: [supplierId], references: [id])
+  currencyCode    String           @default("LYD")
+  status          SettlementStatus @default(DRAFT)
+  penaltyAmount   Decimal          @default(0)
+  penaltyReason   String?
+  walletId        String?
+  wallet          Wallet?          @relation(fields: [walletId], references: [id])
+  paidAmountNative Decimal         @default(0)
+  paidFxRate      Decimal          @default(1)
+  paidAmountLyd   Decimal          @default(0)
+  paidAt          DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  bons            SettlementBon[]
+  advancesApplied SettlementAdvance[]
+  ledgerEntries   LedgerEntry[]
+}
+
+model SettlementBon {
+  id           String     @id @default(cuid())
+  settlementId String
+  settlement   Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  bonId        String
+  bon          Bon        @relation(fields: [bonId], references: [id])
+  lineType     PayableLineType
+  amountNative Decimal
+  amountLyd    Decimal
+  paid         Boolean    @default(false)
+
+  @@unique([settlementId, bonId, lineType])
+}
+
+model SupplierAdvance {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  supplierId   String
+  supplier     Supplier @relation(fields: [supplierId], references: [id])
+  currencyCode String   @default("LYD")
+  amountNative Decimal
+  amountLyd    Decimal
+  remainingNative Decimal
+  date         DateTime @default(now())
+  note         String?
+  createdAt    DateTime @default(now())
+  applications SettlementAdvance[]
+}
+
+model SettlementAdvance {
+  id           String          @id @default(cuid())
+  settlementId String
+  settlement   Settlement      @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  advanceId    String
+  advance      SupplierAdvance @relation(fields: [advanceId], references: [id])
+  amountNative Decimal
+}
+
+model WalletMovement {
+  id           String             @id @default(cuid())
+  walletId     String
+  wallet       Wallet             @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  kind         WalletMovementKind
+  amountNative Decimal
+  fxRate       Decimal            @default(1)
+  amountLyd    Decimal
+  note         String?
+  refType      String?
+  refId        String?
+  confirmedByMp Boolean           @default(false)
+  createdAt    DateTime           @default(now())
+}
+
+model Custody {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  personId   String
+  person     User     @relation(fields: [personId], references: [id])
+  currencyId String
+  currency   Currency @relation(fields: [currencyId], references: [id])
+  balanceNative Decimal @default(0)
+  balanceLyd Decimal  @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([projectId, personId, currencyId])
+}
+
+model Expense {
+  id           String      @id @default(cuid())
+  projectId    String
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type         ExpenseType
+  date         DateTime
+  description  String
+  amountNative Decimal
+  fxRate       Decimal     @default(1)
+  amountLyd    Decimal
+  currencyCode String      @default("LYD")
+  walletId     String
+  wallet       Wallet      @relation(fields: [walletId], references: [id])
+  createdAt    DateTime    @default(now())
+}
+
+model EquipmentLog {
+  id           String    @id @default(cuid())
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  equipmentId  String
+  equipment    Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  periodStart  DateTime
+  periodEnd    DateTime
+  actualHours  Decimal
+  standardHours Decimal
+  unitRate     Decimal
+  cashCostLyd  Decimal
+  booksChargeLyd Decimal @default(0)
+  note         String?
+  createdAt    DateTime  @default(now())
+}
+
+model ChartAccount {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  nameAr    String
+  nameEn    String
+  createdAt DateTime @default(now())
+  lines     JournalLine[]
+}
+
+model JournalEntry {
+  id        String        @id @default(cuid())
+  projectId String
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source    JournalSource
+  refType   String?
+  refId     String?
+  memo      String?
+  date      DateTime      @default(now())
+  createdAt DateTime      @default(now())
+  lines     JournalLine[]
+}
+
+model JournalLine {
+  id        String       @id @default(cuid())
+  entryId   String
+  entry     JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId String
+  account   ChartAccount @relation(fields: [accountId], references: [id])
+  debitLyd  Decimal      @default(0)
+  creditLyd Decimal      @default(0)
+}
+
+model LedgerEntry {
+  id           String      @id @default(cuid())
+  projectId    String
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  settlementId String?
+  settlement   Settlement? @relation(fields: [settlementId], references: [id])
+  kind         String
+  amountLyd    Decimal
+  memo         String?
+  createdAt    DateTime    @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  detail    String?
+  createdAt DateTime @default(now())
+}
+
+model Collection {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  walletId     String
+  wallet       Wallet   @relation(fields: [walletId], references: [id])
+  date         DateTime
+  amountNative Decimal
+  fxRate       Decimal  @default(1)
+  amountLyd    Decimal
+  note         String?
+  createdAt    DateTime @default(now())
+}
+
+model PartnerDistribution {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  date            DateTime @default(now())
+  totalSurplusLyd Decimal
+  note            String?
+  createdAt       DateTime @default(now())
+  lines           PartnerDistributionLine[]
+}
+
+model PartnerDistributionLine {
+  id             String              @id @default(cuid())
+  distributionId String
+  distribution   PartnerDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  userId         String
+  sharePercent   Decimal
+  grossLyd       Decimal
+  managementLyd  Decimal             @default(0)
+  loanRecoveryLyd Decimal            @default(0)
+  netLyd         Decimal
+}
+
+model CloseoutItem {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  labelAr     String
+  done        Boolean  @default(false)
+  doneAt      DateTime?
+  createdAt   DateTime @default(now())
+}

@@ -1,0 +1,15 @@
+[2026-09-12T13:03:52.008Z] [debug] Notifying parent we're ready
+[2026-09-12T13:03:52.229Z] [debug] Received message from parent: {
+  cacheFile: '/Users/mazen/Documents/product-admin-dashboard-main/.vercel-cli/cache/com.vercel.cli/package-updates/vercel-latest.json',
+  distTag: 'latest',
+  name: 'vercel',
+  updateCheckInterval: 86400000
+}
+[2026-09-12T13:03:52.229Z] [debug] Disconnecting from parent
+[2026-09-12T13:03:52.229Z] [debug] Checking lock file: /Users/mazen/Documents/product-admin-dashboard-main/.vercel-cli/cache/com.vercel.cli/package-updates/vercel-latest.lock
+[2026-09-12T13:03:52.229Z] [debug] Initializing lock file with pid 75886
+[2026-09-12T13:03:52.230Z] [debug] Fetching dist-tags for vercel
+[2026-09-12T13:03:52.638Z] [debug] Found dist tag "latest" with version "59.16.0"
+[2026-09-12T13:03:52.638Z] [debug] Writing cache file: /Users/mazen/Documents/product-admin-dashboard-main/.vercel-cli/cache/com.vercel.cli/package-updates/vercel-latest.json
+[2026-09-12T13:03:52.639Z] [debug] Releasing lock file: /Users/mazen/Documents/product-admin-dashboard-main/.vercel-cli/cache/com.vercel.cli/package-updates/vercel-latest.lock
+[2026-09-12T13:03:52.640Z] [debug] Worker finished successfully!

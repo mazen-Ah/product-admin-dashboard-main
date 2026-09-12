@@ -1,0 +1,29 @@
+---
+description: Keep all code changes simple, direct, and free of comments
+alwaysApply: true
+---
+
+# Simple code only
+
+- Keep every change as simple as possible.
+- Prefer the smallest straight-line fix over abstractions, helpers, or extra files.
+- Do not add comments, JSDoc, or explanatory notes in code.
+- Do not add TODOs, section banners, or narrating comments.
+- Avoid drive-by refactors, unused exports, and speculative flexibility.
+- Match existing patterns; change only what the task requires.
+- If two approaches work, choose the shorter one.
+- Must follow our design system (`design.md` + Tailgrids primitives).
+
+```tsx
+// BAD — comments + extra indirection
+/** Fetches project cost summary */
+function getCost(id: string) {
+  // compute from linked docs
+  return compute(id);
+}
+
+// GOOD — direct
+function getCost(id: string) {
+  return compute(id);
+}
+```
