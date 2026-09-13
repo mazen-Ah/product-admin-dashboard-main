@@ -1,17 +1,48 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ensureDemoReady } from "@/lib/seed-demo";
+import { ensureDemoReady, DEMO_USER_IDS } from "@/lib/seed-demo";
 import type { Role } from "@/generated/prisma/client";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-export async function getSession() {
-  return auth.api.getSession({ headers: await headers() });
+export type DemoSession = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    image?: string | null;
+  };
+};
+
+async function demoUser() {
+  await ensureDemoReady(prisma);
+  const user =
+    (await prisma.user.findUnique({ where: { id: DEMO_USER_IDS.accounts } })) ??
+    (await prisma.user.findUnique({ where: { email: "accounts@example.com" } })) ??
+    (await prisma.user.findFirst({ where: { role: "ACCOUNTS_MANAGER" } }));
+
+  if (!user) {
+    throw new Error("Demo user missing — run db:seed");
+  }
+
+  return user;
+}
+
+export async function getSession(): Promise<DemoSession | null> {
+  const user = await demoUser();
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      image: user.image,
+    },
+  };
 }
 
 export async function requireSession() {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) redirect("/");
   return session;
 }
 
@@ -41,7 +72,7 @@ export function canPaySettlement(role: string | null | undefined) {
 }
 
 export function canConfirmNegativeWallet(role: string | null | undefined) {
-  return role === "MANAGING_PARTNER";
+  return role === "MANAGING_PARTNER" || role === "ACCOUNTS_MANAGER";
 }
 
 export function canManageExpenses(role: string | null | undefined) {
@@ -55,20 +86,6 @@ export function canManageExpenses(role: string | null | undefined) {
 
 export function canCloseProject(role: string | null | undefined) {
   return role === "ACCOUNTS_MANAGER" || role === "MANAGING_PARTNER";
-}
-
-async function resolveUserId(sessionUserId: string, email?: string | null) {
-  const byId = await prisma.user.findUnique({
-    where: { id: sessionUserId },
-    select: { id: true },
-  });
-  if (byId) return byId.id;
-  if (!email) return sessionUserId;
-  const byEmail = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-  return byEmail?.id ?? sessionUserId;
 }
 
 export async function getAccessibleProjectIds(userId: string, role: string) {
@@ -85,17 +102,8 @@ export async function getAccessibleProjectIds(userId: string, role: string) {
 
 export async function requireProjectAccess(projectId: string) {
   const session = await requireSession();
-  const role = (session.user as { role?: string }).role ?? "";
-  const email = session.user.email;
-
-  let userId = await resolveUserId(session.user.id, email);
-  let ids = await getAccessibleProjectIds(userId, role);
-
-  if (!ids.includes(projectId)) {
-    await ensureDemoReady(prisma);
-    userId = await resolveUserId(session.user.id, email);
-    ids = await getAccessibleProjectIds(userId, role);
-  }
+  const role = session.user.role ?? "";
+  const ids = await getAccessibleProjectIds(session.user.id, role);
 
   if (!ids.includes(projectId)) {
     const project = await prisma.project.findUnique({
@@ -113,9 +121,9 @@ export async function requireProjectAccess(projectId: string) {
 export async function getCurrentUserRole(): Promise<Role | null> {
   const session = await getSession();
   if (!session) return null;
-  return ((session.user as { role?: Role }).role as Role) ?? null;
+  return (session.user.role as Role) ?? null;
 }
 
 export function sessionRole(session: Awaited<ReturnType<typeof requireSession>>) {
-  return (session.user as { role?: string }).role ?? "";
+  return session.user.role ?? "";
 }

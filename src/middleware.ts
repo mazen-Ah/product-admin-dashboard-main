@@ -1,29 +1,13 @@
-import { getSessionCookie } from "better-auth/cookies";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  if (
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/images") ||
-    pathname === "/favicon.ico"
-  ) {
-    return NextResponse.next();
+export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/login")) {
+    return NextResponse.redirect(new URL("/", request.url));
   }
-
-  const sessionCookie = getSessionCookie(request);
-  if (!sessionCookie) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|images|api/auth).*)"],
+  matcher: ["/login"],
 };
