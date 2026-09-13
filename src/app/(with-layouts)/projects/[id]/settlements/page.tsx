@@ -29,6 +29,7 @@ import { redirect } from "next/navigation";
 
 export default async function SettlementsPage({
   params,
+  
   searchParams,
 }: {
   params: Promise<{ id: string }>;
